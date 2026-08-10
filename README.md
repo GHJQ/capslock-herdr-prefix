@@ -14,7 +14,7 @@ action does it now. Then detach and reattach so the client picks up the new
 prefix, and `Caps Lock` + `c` opens a new tab, `Caps Lock` + `|` splits, and so
 on.
 
-The plugin adds `prefix = "f13"` under `[keys]` in `~/.config/herdr/config.toml`
+The plugin adds `prefix = "<key>"` under `[keys]` in `~/.config/herdr/config.toml`
 itself — herdr plugins can't *declare* a keybinding, but a startup command can
 write one. Your config is patched in place and backed up to
 `config.toml.bak.<timestamp>` first; if herdr rejects the result the backup goes
@@ -41,7 +41,46 @@ cd capslock-herdr-prefix
 
 Same setup, plus a LaunchAgent so the remap is always on rather than only while
 herdr is running. Pick this one if you want it to behave like a permanent
-keyboard setting.
+keyboard setting. It asks which key to use; `--key f13` skips the question.
+
+## Which key?
+
+Caps Lock has to *become* some other key first (see below), and which one is not
+just bookkeeping — pick wrong and the prefix does nothing at all, with no error
+to explain why.
+
+| | F12 | F13 |
+|---|---|---|
+| Apple Terminal | works | **silently does nothing** |
+| iTerm2, Ghostty, kitty, WezTerm, Alacritty | works | works |
+| Collides with | F12 in other apps — rarely bound, and the real F12 key still works | nothing; no Apple keyboard has an F13 |
+
+**F12 is the default**, because it's the one every terminal already sends. F13 is
+the tidier choice where it's supported, and the plugin picks it automatically for
+terminals known to emit it.
+
+Switch at any time from herdr's workspace action menu — *Use F12* / *Use F13* —
+or:
+
+```sh
+herdr plugin action invoke use-f13 --plugin capslock-herdr-prefix
+```
+
+The choice is remembered in `~/.config/herdr/plugins/config/capslock-herdr-prefix/key`,
+so the startup hook doesn't re-decide from a different environment later and move
+the key under you. `CAPSLOCK_HERDR_KEY=f13` overrides it for one run and becomes
+the new saved choice. Any of `f1`–`f20` is accepted if you have your own ideas.
+
+### Why Apple Terminal drops F13
+
+Terminal.app's key map stops at F12. Press F13 and it sends nothing at all — no
+escape sequence reaches herdr, so the prefix never fires and there's nothing in
+any log to tell you why. Terminals that implement the xterm or kitty keyboard
+protocols send `ESC [ 25 ~` for F13 and work fine.
+
+You can teach Terminal.app about F13 by hand — Settings → Profiles → Keyboard →
+`+`, key F13, action *Send Text*, `\033[25~` — but choosing F12 is one less thing
+to carry between machines.
 
 ## Why it isn't just a config line
 
@@ -56,18 +95,17 @@ That's not a herdr limitation so much as a terminal one. Caps Lock is a lock
 modifier: macOS consumes the keypress and it never arrives as a key event, so no
 terminal app can bind it.
 
-The way around it is to stop Caps Lock being Caps Lock. `bin/remap` binds **F13**
-as the herdr prefix, then points Caps Lock at F13 at the HID level with
-`hidutil`. F13 is the usual pick because no Apple keyboard has one, so nothing
-else wants it.
+The way around it is to stop Caps Lock being Caps Lock. `bin/remap` binds an
+F-key as the herdr prefix, then points Caps Lock at it at the HID level with
+`hidutil`.
 
 ## What it changes
 
 | | plugin | `install.sh` |
 |---|---|---|
-| `[keys] prefix = "f13"` in `~/.config/herdr/config.toml` | on first run | on first run |
-| `hidutil` remap, Caps Lock (`0x700000039`) → F13 (`0x700000068`) | on every herdr start | immediately |
-| `~/Library/LaunchAgents/com.local.CapsLockToF13.plist` | — | reapplies the remap at login |
+| `[keys] prefix = "<key>"` in `~/.config/herdr/config.toml` | on first run | on first run |
+| `hidutil` remap, Caps Lock (`0x700000039`) → F12 (`0x700000045`) or F13 (`0x700000068`) | on every herdr start | immediately |
+| `~/Library/LaunchAgents/com.local.CapsLockToFKey.plist` | — | reapplies the remap at login |
 
 Both routes run the same `bin/remap`, and it always does those first two rows in
 that order — the remap is skipped entirely if the binding can't be written.
@@ -91,7 +129,7 @@ only offers Ctrl, Option, Command, Escape and Globe. Hence `hidutil`.
 ## Caveats
 
 **Caps Lock stops capitalising, everywhere.** This is a system-wide HID remap, not
-a per-app one. Every app sees F13.
+a per-app one. Every app sees the F-key.
 
 **The Caps Lock light no longer comes on.** Nothing is toggling the lock state
 any more, so there's nothing to light up.
@@ -118,16 +156,3 @@ herdr's status bar already shows prefix mode, instantly and for free.
 herdr plugin uninstall capslock-herdr-prefix   # plugin route
 ./uninstall.sh                                  # install.sh route
 ```
-
-`uninstall.sh` removes the LaunchAgent, clears the HID remap, and drops the
-`prefix = "f13"` line (leaving any other herdr keybindings alone). Uninstalling
-the plugin stops it reapplying the remap but doesn't clear the current one — run
-the *Restore Caps Lock* action first, or `hidutil property --set
-'{"UserKeyMapping":[]}'`.
-
-## Using a different key
-
-F13 is not special. `install.sh` takes any key herdr accepts — swap the `F13`
-usage code for another from the [HID usage
-tables](https://usb.org/document-library/hid-usage-tables-16) and the
-`prefix = "f13"` string to match. F14 is `0x700000069`, F15 is `0x70000006A`.
