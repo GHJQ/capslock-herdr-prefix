@@ -65,6 +65,12 @@ The herdr config is patched in place, not overwritten, and backed up to
 `config.toml.bak.<timestamp>` first. If herdr rejects the result the backup is
 restored and the script exits non-zero.
 
+Your other HID remaps are left alone. `hidutil --set` replaces the entire
+`UserKeyMapping` table rather than merging into it, so `bin/remap` reads the
+current table, edits only the Caps Lock entry, and writes the rest back
+untouched. The LaunchAgent runs `bin/remap` for the same reason — which means it
+needs the clone to stay put. Move it and re-run `./install.sh`.
+
 macOS's built-in Keyboard → Modifier Keys panel can't do this, incidentally — it
 only offers Ctrl, Option, Command, Escape and Globe. Hence `hidutil`.
 

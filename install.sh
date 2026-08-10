@@ -9,15 +9,14 @@ set -euo pipefail
 LABEL="com.local.CapsLockToF13"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 CONFIG="$HOME/.config/herdr/config.toml"
-CAPS_LOCK=0x700000039
-F13=0x700000068
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REMAP="$SCRIPT_DIR/bin/remap"
 
 [[ "$(uname)" == "Darwin" ]] || { echo "macOS only — hidutil is an Apple thing." >&2; exit 1; }
 command -v herdr >/dev/null || { echo "herdr not found on PATH. brew install herdr" >&2; exit 1; }
 
 echo "==> Remapping Caps Lock to F13"
-hidutil property --set \
-  "{\"UserKeyMapping\":[{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$F13}]}" >/dev/null
+"$REMAP" on
 
 echo "==> Installing LaunchAgent so it survives reboot"
 mkdir -p "$(dirname "$PLIST")"
@@ -30,10 +29,8 @@ cat > "$PLIST" <<PLIST_EOF
   <string>$LABEL</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/bin/hidutil</string>
-    <string>property</string>
-    <string>--set</string>
-    <string>{"UserKeyMapping":[{"HIDKeyboardModifierMappingSrc":$CAPS_LOCK,"HIDKeyboardModifierMappingDst":$F13}]}</string>
+    <string>$REMAP</string>
+    <string>on</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
