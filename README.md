@@ -2,27 +2,20 @@
 
 Makes Caps Lock the prefix key for [herdr](https://herdr.dev) on macOS.
 
-**Both steps are required.** herdr plugins can't register keybindings, so the
-plugin only does the remap — binding it is yours. Add this to
-`~/.config/herdr/config.toml` first:
-
-```toml
-[keys]
-prefix = "f13"
-```
-
-then:
-
 ```sh
-herdr server reload-config
 herdr plugin install GHJQ/capslock-herdr-prefix
 ```
 
 `Caps Lock` + `c` now opens a new tab, `Caps Lock` + `|` splits, and so on.
 
-Install them the other way round and nothing breaks — the remap refuses to run
-until the binding exists, and tells you so in `herdr plugin log list`. It won't
-leave you with a Caps Lock key that does nothing at all.
+That's the whole install. The plugin adds `prefix = "f13"` under `[keys]` in
+`~/.config/herdr/config.toml` on first run — herdr plugins can't declare a
+keybinding, but a startup command can write one, so it does. Your config is
+patched in place and backed up to `config.toml.bak.<timestamp>` first; if herdr
+rejects the result the backup goes straight back and nothing is remapped.
+
+Caps Lock is only remapped once that binding is in place, so a failure here
+can't leave you with a key that does nothing at all.
 
 ### Or without the plugin
 
@@ -32,9 +25,9 @@ cd capslock-herdr-prefix
 ./install.sh
 ```
 
-Does the whole job, including the config line, and installs a LaunchAgent so the
-remap is always on rather than only while herdr is running. Pick this one if you
-want it to behave like a permanent keyboard setting.
+Same setup, plus a LaunchAgent so the remap is always on rather than only while
+herdr is running. Pick this one if you want it to behave like a permanent
+keyboard setting.
 
 ## Why it isn't just a config line
 
@@ -49,19 +42,21 @@ That's not a herdr limitation so much as a terminal one. Caps Lock is a lock
 modifier: macOS consumes the keypress and it never arrives as a key event, so no
 terminal app can bind it.
 
-The way around it is to stop Caps Lock being Caps Lock. `install.sh` remaps it to
-**F13** at the HID level with `hidutil`, then binds F13 as the herdr prefix. F13
-is the usual pick because no Apple keyboard has one, so nothing else wants it.
+The way around it is to stop Caps Lock being Caps Lock. `bin/remap` binds **F13**
+as the herdr prefix, then points Caps Lock at F13 at the HID level with
+`hidutil`. F13 is the usual pick because no Apple keyboard has one, so nothing
+else wants it.
 
 ## What it changes
 
 | | plugin | `install.sh` |
 |---|---|---|
-| `hidutil` remap, Caps Lock (`0x700000039`) → F13 (`0x700000068`) | on every herdr start, once bound | immediately |
+| `[keys] prefix = "f13"` in `~/.config/herdr/config.toml` | on first run | on first run |
+| `hidutil` remap, Caps Lock (`0x700000039`) → F13 (`0x700000068`) | on every herdr start | immediately |
 | `~/Library/LaunchAgents/com.local.CapsLockToF13.plist` | — | reapplies the remap at login |
-| `[keys] prefix = "f13"` in `~/.config/herdr/config.toml` | you add it, first | done for you |
 
-Either way the remap is a no-op until that last row exists.
+Both routes run the same `bin/remap`, and it always does those first two rows in
+that order — the remap is skipped entirely if the binding can't be written.
 
 **The plugin has no shutdown hook** — plugin v1 doesn't offer one, so quitting
 herdr leaves Caps Lock remapped. Run the *Restore Caps Lock* action to undo it:
@@ -69,10 +64,6 @@ herdr leaves Caps Lock remapped. Run the *Restore Caps Lock* action to undo it:
 ```sh
 herdr plugin action invoke restore --plugin capslock-herdr-prefix
 ```
-
-The herdr config is patched in place, not overwritten, and backed up to
-`config.toml.bak.<timestamp>` first. If herdr rejects the result the backup is
-restored and the script exits non-zero.
 
 Your other HID remaps are left alone. `hidutil --set` replaces the entire
 `UserKeyMapping` table rather than merging into it, so `bin/remap` reads the
