@@ -1,0 +1,58 @@
+#!/bin/sh
+# Ensure herdr's prefix is F13. Idempotent — safe to run on every start.
+set -eu
+
+CONFIG="$HOME/.config/herdr/config.toml"
+
+bound() {
+  [ -f "$CONFIG" ] || return 1
+  awk '
+    /^[[:space:]]*\[keys\][[:space:]]*$/ { in_keys = 1; next }
+    /^[[:space:]]*\[/                    { in_keys = 0 }
+    in_keys && /^[[:space:]]*prefix[[:space:]]*=[[:space:]]*"f13"[[:space:]]*$/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$CONFIG"
+}
+
+# The common case, and the only one that works without herdr on PATH — which
+# matters, because launchd hands us a minimal one.
+if bound; then
+  exit 0
+fi
+
+if ! command -v herdr >/dev/null; then
+  echo "herdr not on PATH; leaving $CONFIG alone" >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$CONFIG")"
+touch "$CONFIG"
+BACKUP="$CONFIG.bak.$(date +%Y%m%d%H%M%S)"
+cp "$CONFIG" "$BACKUP"
+
+# Patch in place rather than overwrite — you may have other herdr settings.
+awk '
+  /^[[:space:]]*\[keys\][[:space:]]*$/ { in_keys = 1; seen_keys = 1; print; next }
+  /^[[:space:]]*\[/ && !/^[[:space:]]*\[keys\][[:space:]]*$/ {
+    if (in_keys && !done) { print "prefix = \"f13\""; done = 1 }
+    printf "%s", held; held = ""
+    in_keys = 0; print; next
+  }
+  in_keys && /^[[:space:]]*prefix[[:space:]]*=/ { printf "%s", held; held = ""; print "prefix = \"f13\""; done = 1; next }
+  in_keys && /^[[:space:]]*$/ { held = held $0 "\n"; next }
+  { printf "%s", held; held = ""; print }
+  END {
+    if (in_keys && !done) { print "prefix = \"f13\""; done = 1 }
+    printf "%s", held
+    if (!seen_keys) { print ""; print "[keys]"; print "prefix = \"f13\"" }
+  }
+' "$BACKUP" > "$CONFIG"
+
+if herdr config check 2>&1 | grep -q "invalid keybinding"; then
+  echo "herdr rejected the config; restored $BACKUP" >&2
+  cp "$BACKUP" "$CONFIG"
+  exit 1
+fi
+
+herdr server reload-config >/dev/null 2>&1 || true
+echo "herdr prefix bound to F13 (backup: $BACKUP)"
