@@ -4,18 +4,32 @@ Makes Caps Lock the prefix key for [herdr](https://herdr.dev) on macOS.
 
 ```sh
 herdr plugin install GHJQ/capslock-herdr-prefix
+herdr plugin action invoke apply --plugin capslock-herdr-prefix
 ```
 
-`Caps Lock` + `c` now opens a new tab, `Caps Lock` + `|` splits, and so on.
+**Both lines are needed.** Installing a plugin doesn't run anything — startup
+commands fire when the herdr *server* starts, so a plain install leaves the files
+on disk and your keyboard untouched. Restarting herdr would do it; the `apply`
+action does it now. Then detach and reattach so the client picks up the new
+prefix, and `Caps Lock` + `c` opens a new tab, `Caps Lock` + `|` splits, and so
+on.
 
-That's the whole install. The plugin adds `prefix = "f13"` under `[keys]` in
-`~/.config/herdr/config.toml` on first run — herdr plugins can't declare a
-keybinding, but a startup command can write one, so it does. Your config is
-patched in place and backed up to `config.toml.bak.<timestamp>` first; if herdr
-rejects the result the backup goes straight back and nothing is remapped.
+The plugin adds `prefix = "f13"` under `[keys]` in `~/.config/herdr/config.toml`
+itself — herdr plugins can't *declare* a keybinding, but a startup command can
+write one. Your config is patched in place and backed up to
+`config.toml.bak.<timestamp>` first; if herdr rejects the result the backup goes
+straight back and nothing is remapped. Caps Lock is only ever remapped once that
+binding is in place, so a failure can't leave you with a dead key.
 
-Caps Lock is only remapped once that binding is in place, so a failure here
-can't leave you with a key that does nothing at all.
+Check what happened with:
+
+```sh
+herdr plugin log list
+```
+
+That's where plugin output goes — it isn't printed to your terminal. The plugin
+also raises a herdr notification when it binds the prefix, which you'll only see
+if you have notifications enabled.
 
 ### Or without the plugin
 
