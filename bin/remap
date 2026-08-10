@@ -4,16 +4,43 @@
 set -eu
 
 CAPS_LOCK=0x700000039
+CAPS_LOCK_DEC=30064771129
 F13=0x700000068
+
+# Every mapping except Caps Lock's, as JSON. hidutil --set replaces the whole
+# table rather than merging, so anything we don't carry over is lost.
+other_mappings() {
+  hidutil property --get "UserKeyMapping" 2>/dev/null | awk \
+    -v caps="$CAPS_LOCK" -v caps_dec="$CAPS_LOCK_DEC" '
+    function value(line) {
+      sub(/^[^=]*=[[:space:]]*/, "", line)
+      sub(/[[:space:];,]+$/, "", line)
+      return line
+    }
+    /HIDKeyboardModifierMappingSrc/ { src = value($0) }
+    /HIDKeyboardModifierMappingDst/ { dst = value($0) }
+    /}/ {
+      if (src != "" && src != caps && src != caps_dec)
+        out = out (out == "" ? "" : ",") \
+          "{\"HIDKeyboardModifierMappingSrc\":" src ",\"HIDKeyboardModifierMappingDst\":" dst "}"
+      src = ""; dst = ""
+    }
+    END { print out }
+  '
+}
+
+apply() {
+  hidutil property --set "{\"UserKeyMapping\":[$1]}" >/dev/null
+}
 
 case "${1:-}" in
   on)
-    hidutil property --set \
-      "{\"UserKeyMapping\":[{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$F13}]}" >/dev/null
+    others=$(other_mappings)
+    apply "${others:+$others,}{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$F13}"
     echo "Caps Lock -> F13"
     ;;
   off)
-    hidutil property --set '{"UserKeyMapping":[]}' >/dev/null
+    apply "$(other_mappings)"
     echo "Caps Lock restored"
     ;;
   *)

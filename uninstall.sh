@@ -5,13 +5,14 @@ set -euo pipefail
 LABEL="com.local.CapsLockToF13"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 CONFIG="$HOME/.config/herdr/config.toml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> Removing LaunchAgent"
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 rm -f "$PLIST"
 
 echo "==> Clearing the HID remap"
-hidutil property --set '{"UserKeyMapping":[]}' >/dev/null
+"$SCRIPT_DIR/bin/remap" off >/dev/null
 
 echo "==> Reverting the herdr prefix"
 if [[ -f "$CONFIG" ]] && grep -q '^prefix = "f13"$' "$CONFIG"; then
