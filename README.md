@@ -3,12 +3,31 @@
 Makes Caps Lock the prefix key for [herdr](https://herdr.dev) on macOS.
 
 ```sh
+herdr plugin install GHJQ/capslock-herdr-prefix
+```
+
+Then add one line to `~/.config/herdr/config.toml` — plugin v1 can't register
+keybindings, so this part is yours:
+
+```toml
+[keys]
+prefix = "f13"
+```
+
+`herdr server reload-config`, and `Caps Lock` + `c` opens a new tab, `Caps Lock`
++ `|` splits, and so on.
+
+### Or without the plugin
+
+```sh
 git clone https://github.com/GHJQ/capslock-herdr-prefix.git
 cd capslock-herdr-prefix
 ./install.sh
 ```
 
-Then `Caps Lock` + `c` opens a new tab, `Caps Lock` + `|` splits, and so on.
+Does the whole job, including the config line, and installs a LaunchAgent so the
+remap is always on rather than only while herdr is running. Pick this one if you
+want it to behave like a permanent keyboard setting.
 
 ## Why it isn't just a config line
 
@@ -29,11 +48,18 @@ is the usual pick because no Apple keyboard has one, so nothing else wants it.
 
 ## What it changes
 
-| | |
-|---|---|
-| `hidutil` remap | Caps Lock (`0x700000039`) → F13 (`0x700000068`), applied immediately |
-| `~/Library/LaunchAgents/com.local.CapsLockToF13.plist` | Reapplies the remap at login |
-| `~/.config/herdr/config.toml` | Sets `[keys] prefix = "f13"` |
+| | plugin | `install.sh` |
+|---|---|---|
+| `hidutil` remap, Caps Lock (`0x700000039`) → F13 (`0x700000068`) | on every herdr start | immediately |
+| `~/Library/LaunchAgents/com.local.CapsLockToF13.plist` | — | reapplies the remap at login |
+| `[keys] prefix = "f13"` in `~/.config/herdr/config.toml` | you add it | done for you |
+
+**The plugin has no shutdown hook** — plugin v1 doesn't offer one, so quitting
+herdr leaves Caps Lock remapped. Run the *Restore Caps Lock* action to undo it:
+
+```sh
+herdr plugin action invoke restore --plugin capslock-herdr-prefix
+```
 
 The herdr config is patched in place, not overwritten, and backed up to
 `config.toml.bak.<timestamp>` first. If herdr rejects the result the backup is
@@ -69,11 +95,15 @@ herdr's status bar already shows prefix mode, instantly and for free.
 ## Uninstall
 
 ```sh
-./uninstall.sh
+herdr plugin uninstall capslock-herdr-prefix   # plugin route
+./uninstall.sh                                  # install.sh route
 ```
 
-Removes the LaunchAgent, clears the HID remap, and drops the `prefix = "f13"`
-line (leaving any other herdr keybindings alone).
+`uninstall.sh` removes the LaunchAgent, clears the HID remap, and drops the
+`prefix = "f13"` line (leaving any other herdr keybindings alone). Uninstalling
+the plugin stops it reapplying the remap but doesn't clear the current one — run
+the *Restore Caps Lock* action first, or `hidutil property --set
+'{"UserKeyMapping":[]}'`.
 
 ## Using a different key
 

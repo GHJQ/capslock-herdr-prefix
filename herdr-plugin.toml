@@ -1,0 +1,24 @@
+id = "capslock-herdr-prefix"
+name = "Caps Lock prefix"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+description = "Remap Caps Lock to F13 so herdr can bind it as the prefix key"
+platforms = ["macos"]
+
+# Applied once per herdr start. Quitting herdr leaves the remap in place —
+# plugin v1 has no shutdown hook. Run the "restore" action, or use install.sh
+# instead if you want it managed by launchd.
+[[startup]]
+command = ["./bin/remap", "on"]
+
+[[actions]]
+id = "restore"
+title = "Restore Caps Lock"
+contexts = ["workspace"]
+command = ["./bin/remap", "off"]
+
+[[actions]]
+id = "apply"
+title = "Caps Lock as prefix"
+contexts = ["workspace"]
+command = ["./bin/remap", "on"]

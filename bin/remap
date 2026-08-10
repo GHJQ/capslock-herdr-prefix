@@ -1,0 +1,23 @@
+#!/bin/sh
+# Point Caps Lock at F13, or give it back.
+# usage: remap on|off
+set -eu
+
+CAPS_LOCK=0x700000039
+F13=0x700000068
+
+case "${1:-}" in
+  on)
+    hidutil property --set \
+      "{\"UserKeyMapping\":[{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$F13}]}" >/dev/null
+    echo "Caps Lock -> F13"
+    ;;
+  off)
+    hidutil property --set '{"UserKeyMapping":[]}' >/dev/null
+    echo "Caps Lock restored"
+    ;;
+  *)
+    echo "usage: remap on|off" >&2
+    exit 2
+    ;;
+esac
