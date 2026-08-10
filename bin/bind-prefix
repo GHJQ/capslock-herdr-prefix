@@ -4,6 +4,12 @@ set -eu
 
 CONFIG="$HOME/.config/herdr/config.toml"
 
+# Plugin output only reaches `herdr plugin log list`, so say anything important
+# out loud too. No-ops when the user has notifications off; never fatal.
+notify() {
+  herdr notification show "$1" --body "$2" --sound done >/dev/null 2>&1 || true
+}
+
 bound() {
   [ -f "$CONFIG" ] || return 1
   awk '
@@ -49,10 +55,18 @@ awk '
 ' "$BACKUP" > "$CONFIG"
 
 if herdr config check 2>&1 | grep -q "invalid keybinding"; then
-  echo "herdr rejected the config; restored $BACKUP" >&2
   cp "$BACKUP" "$CONFIG"
+  echo "herdr rejected the config; restored $BACKUP. Caps Lock left alone." >&2
+  notify "Caps Lock left alone" "herdr rejected the prefix binding. See: herdr plugin log list"
   exit 1
 fi
 
 herdr server reload-config >/dev/null 2>&1 || true
-echo "herdr prefix bound to F13 (backup: $BACKUP)"
+
+cat <<MSG
+herdr prefix bound to F13 (backup: $BACKUP)
+
+One step left: detach and reattach herdr, so the client picks up the new
+prefix. Then press Caps Lock and 'c' for a new tab.
+MSG
+notify "Caps Lock is now the herdr prefix" "Detach and reattach herdr to finish, then press Caps Lock + c."
