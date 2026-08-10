@@ -1,16 +1,16 @@
 #!/bin/sh
-# Point Caps Lock at F13, or give it back.
-# usage: remap on|off
+# Point Caps Lock at an F-key, or give it back.
+# usage: remap on [fN] | off
 set -eu
 
 CAPS_LOCK=0x700000039
 CAPS_LOCK_DEC=30064771129
-F13=0x700000068
 # Expansion rather than dirname: launchd's PATH is minimal and this has to hold.
 case "$0" in
   */*) SELF_DIR=$(cd "${0%/*}" && pwd) ;;
   *)   SELF_DIR=$(pwd) ;;
 esac
+. "$SELF_DIR/key.sh"
 
 # Every mapping except Caps Lock's, as JSON. hidutil --set replaces the whole
 # table rather than merging, so anything we don't carry over is lost.
@@ -40,22 +40,29 @@ apply() {
 
 case "${1:-}" in
   on)
+    # A key named here is a deliberate switch, so it becomes the saved choice.
+    if [ -n "${2:-}" ]; then
+      valid_key "$2" || { echo "usage: remap on [f1-f20]" >&2; exit 2; }
+      save_key "$2"
+    fi
+    KEY=$(resolve_key)
+
     # Never remap without a prefix to show for it — that trade only costs you
     # Caps Lock. bind-prefix is idempotent, so this is a no-op once set up.
-    if ! "$SELF_DIR/bind-prefix"; then
-      echo "Caps Lock left alone: nothing is bound to F13." >&2
+    if ! "$SELF_DIR/bind-prefix" "$KEY"; then
+      echo "Caps Lock left alone: nothing is bound to $KEY." >&2
       exit 1
     fi
     others=$(other_mappings)
-    apply "${others:+$others,}{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$F13}"
-    echo "Caps Lock -> F13"
+    apply "${others:+$others,}{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$(hid_usage "$KEY")}"
+    echo "Caps Lock -> $(echo "$KEY" | tr '[:lower:]' '[:upper:]')"
     ;;
   off)
     apply "$(other_mappings)"
     echo "Caps Lock restored"
     ;;
   *)
-    echo "usage: remap on|off" >&2
+    echo "usage: remap on [fN] | off" >&2
     exit 2
     ;;
 esac

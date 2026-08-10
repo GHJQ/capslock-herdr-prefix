@@ -1,8 +1,18 @@
 #!/bin/sh
-# Ensure herdr's prefix is F13. Idempotent — safe to run on every start.
+# Ensure herdr's prefix is the F-key we remap Caps Lock to.
+# usage: bind-prefix [fN]        (defaults to the saved/detected key)
+# Idempotent — safe to run on every start.
 set -eu
 
 CONFIG="$HOME/.config/herdr/config.toml"
+case "$0" in
+  */*) SELF_DIR=$(cd "${0%/*}" && pwd) ;;
+  *)   SELF_DIR=$(pwd) ;;
+esac
+. "$SELF_DIR/key.sh"
+
+KEY=${1:-$(resolve_key)}
+valid_key "$KEY" || { echo "usage: bind-prefix [f1-f20]" >&2; exit 2; }
 
 # Plugin output only reaches `herdr plugin log list`, so say anything important
 # out loud too. No-ops when the user has notifications off; never fatal.
@@ -12,10 +22,10 @@ notify() {
 
 bound() {
   [ -f "$CONFIG" ] || return 1
-  awk '
+  awk -v key="$KEY" '
     /^[[:space:]]*\[keys\][[:space:]]*$/ { in_keys = 1; next }
     /^[[:space:]]*\[/                    { in_keys = 0 }
-    in_keys && /^[[:space:]]*prefix[[:space:]]*=[[:space:]]*"f13"[[:space:]]*$/ { found = 1 }
+    in_keys && $0 ~ "^[[:space:]]*prefix[[:space:]]*=[[:space:]]*\"" key "\"[[:space:]]*$" { found = 1 }
     END { exit found ? 0 : 1 }
   ' "$CONFIG"
 }
@@ -37,20 +47,21 @@ BACKUP="$CONFIG.bak.$(date +%Y%m%d%H%M%S)"
 cp "$CONFIG" "$BACKUP"
 
 # Patch in place rather than overwrite — you may have other herdr settings.
-awk '
+awk -v key="$KEY" '
+  function prefix_line() { return "prefix = \"" key "\"" }
   /^[[:space:]]*\[keys\][[:space:]]*$/ { in_keys = 1; seen_keys = 1; print; next }
   /^[[:space:]]*\[/ && !/^[[:space:]]*\[keys\][[:space:]]*$/ {
-    if (in_keys && !done) { print "prefix = \"f13\""; done = 1 }
+    if (in_keys && !done) { print prefix_line(); done = 1 }
     printf "%s", held; held = ""
     in_keys = 0; print; next
   }
-  in_keys && /^[[:space:]]*prefix[[:space:]]*=/ { printf "%s", held; held = ""; print "prefix = \"f13\""; done = 1; next }
+  in_keys && /^[[:space:]]*prefix[[:space:]]*=/ { printf "%s", held; held = ""; print prefix_line(); done = 1; next }
   in_keys && /^[[:space:]]*$/ { held = held $0 "\n"; next }
   { printf "%s", held; held = ""; print }
   END {
-    if (in_keys && !done) { print "prefix = \"f13\""; done = 1 }
+    if (in_keys && !done) { print prefix_line(); done = 1 }
     printf "%s", held
-    if (!seen_keys) { print ""; print "[keys]"; print "prefix = \"f13\"" }
+    if (!seen_keys) { print ""; print "[keys]"; print prefix_line() }
   }
 ' "$BACKUP" > "$CONFIG"
 
@@ -63,8 +74,9 @@ fi
 
 herdr server reload-config >/dev/null 2>&1 || true
 
+UPPER=$(echo "$KEY" | tr '[:lower:]' '[:upper:]')
 cat <<MSG
-herdr prefix bound to F13 (backup: $BACKUP)
+herdr prefix bound to $UPPER (backup: $BACKUP)
 
 One step left: detach and reattach herdr, so the client picks up the new
 prefix. Then press Caps Lock and 'c' for a new tab.

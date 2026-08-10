@@ -1,8 +1,8 @@
 id = "capslock-herdr-prefix"
 name = "Caps Lock prefix"
-version = "0.1.0"
+version = "0.2.0"
 min_herdr_version = "0.7.0"
-description = "Remap Caps Lock to F13 so herdr can bind it as the prefix key"
+description = "Remap Caps Lock to an unused F-key so herdr can bind it as the prefix key"
 platforms = ["macos"]
 
 # Applied once per herdr start. Quitting herdr leaves the remap in place —
@@ -22,3 +22,17 @@ id = "apply"
 title = "Caps Lock as prefix"
 contexts = ["workspace"]
 command = ["./bin/remap", "on"]
+
+# Which key to hide behind matters more than it looks: Apple Terminal never
+# sends F13, so the prefix silently does nothing there. These pick a side.
+[[actions]]
+id = "use-f12"
+title = "Use F12 (works in Apple Terminal)"
+contexts = ["workspace"]
+command = ["./bin/remap", "on", "f12"]
+
+[[actions]]
+id = "use-f13"
+title = "Use F13 (iTerm2, Ghostty, kitty, WezTerm)"
+contexts = ["workspace"]
+command = ["./bin/remap", "on", "f13"]
