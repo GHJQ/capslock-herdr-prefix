@@ -15,32 +15,8 @@ REMAP="$SCRIPT_DIR/bin/remap"
 [[ "$(uname)" == "Darwin" ]] || { echo "macOS only — hidutil is an Apple thing." >&2; exit 1; }
 command -v herdr >/dev/null || { echo "herdr not found on PATH. brew install herdr" >&2; exit 1; }
 
-echo "==> Remapping Caps Lock to F13"
-"$REMAP" on
-
-echo "==> Installing LaunchAgent so it survives reboot"
-mkdir -p "$(dirname "$PLIST")"
-cat > "$PLIST" <<PLIST_EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>$LABEL</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>$REMAP</string>
-    <string>on</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-</dict>
-</plist>
-PLIST_EOF
-
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
-
+# The binding comes first: remap refuses to run until herdr is listening for F13,
+# so that a half-finished install can't leave you without a working Caps Lock.
 echo "==> Pointing herdr's prefix at F13"
 mkdir -p "$(dirname "$CONFIG")"
 touch "$CONFIG"
@@ -72,6 +48,32 @@ if herdr config check 2>&1 | grep -q "invalid keybinding"; then
 fi
 
 herdr server reload-config >/dev/null 2>&1 || true
+
+echo "==> Remapping Caps Lock to F13"
+"$REMAP" on
+
+echo "==> Installing LaunchAgent so it survives reboot"
+mkdir -p "$(dirname "$PLIST")"
+cat > "$PLIST" <<PLIST_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$REMAP</string>
+    <string>on</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
+PLIST_EOF
+
+launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$PLIST"
 
 echo
 echo "Done. Caps Lock is now your herdr prefix — try Caps Lock then 'c' for a new tab."

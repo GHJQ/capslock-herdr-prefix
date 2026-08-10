@@ -6,6 +6,20 @@ set -eu
 CAPS_LOCK=0x700000039
 CAPS_LOCK_DEC=30064771129
 F13=0x700000068
+CONFIG="$HOME/.config/herdr/config.toml"
+
+# Remapping is only worth doing if herdr is listening for F13. Plugins can't
+# register keybindings, so this line is the user's to add — and without it the
+# remap costs them Caps Lock and gives nothing back.
+prefix_is_f13() {
+  [ -f "$CONFIG" ] || return 1
+  awk '
+    /^[[:space:]]*\[keys\][[:space:]]*$/ { in_keys = 1; next }
+    /^[[:space:]]*\[/                    { in_keys = 0 }
+    in_keys && /^[[:space:]]*prefix[[:space:]]*=[[:space:]]*"f13"[[:space:]]*$/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$CONFIG"
+}
 
 # Every mapping except Caps Lock's, as JSON. hidutil --set replaces the whole
 # table rather than merging, so anything we don't carry over is lost.
@@ -35,6 +49,22 @@ apply() {
 
 case "${1:-}" in
   on)
+    if ! prefix_is_f13; then
+      cat >&2 <<'MSG'
+Caps Lock left alone: herdr has no prefix bound to F13.
+
+Add this to ~/.config/herdr/config.toml:
+
+    [keys]
+    prefix = "f13"
+
+then run: herdr server reload-config
+
+herdr plugins can't register keybindings, so that line is yours to add.
+Remapping before it exists would only cost you Caps Lock.
+MSG
+      exit 1
+    fi
     others=$(other_mappings)
     apply "${others:+$others,}{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$F13}"
     echo "Caps Lock -> F13"
