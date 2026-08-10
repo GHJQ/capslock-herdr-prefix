@@ -56,8 +56,19 @@ to explain why.
 | Collides with | F12 in other apps — rarely bound, and the real F12 key still works | nothing; no Apple keyboard has an F13 |
 
 **F12 is the default**, because it's the one every terminal already sends. F13 is
-the tidier choice where it's supported, and the plugin picks it automatically for
-terminals known to emit it.
+the tidier choice, but it's opt-in: the plugin never picks it for you.
+
+That's deliberate, and it's worth knowing why the obvious alternative doesn't
+work. The plugin's commands run in the herdr **server**, and the server's
+`TERM_PROGRAM` is whichever terminal happened to launch it — not the one a client
+is attached from. Those are routinely different, and a client can attach from a
+terminal that didn't exist when the server started. Detecting there would confidently
+pick F13 for a session that can't receive it, which is the exact failure this is
+meant to prevent. Only `install.sh` runs in the terminal you actually type into,
+so it's the only place that offers a detected suggestion — and it still asks.
+
+The prefix is also one global setting while clients can attach from several
+terminals at once, so it has to work in all of them. F12 does.
 
 Switch at any time from herdr's workspace action menu — *Use F12* / *Use F13* —
 or:

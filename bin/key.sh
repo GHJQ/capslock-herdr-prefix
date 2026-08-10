@@ -14,6 +14,13 @@ valid_key() {
 # F13-F20 only reach the app if the terminal emits them. Apple Terminal has no
 # mapping past F12 and drops them silently — the prefix just never fires. F12 is
 # the one every terminal already sends, so anything we don't recognise gets that.
+#
+# Only meaningful when we're running in the terminal the user actually types
+# into — i.e. install.sh. Do NOT call this from the plugin path: those commands
+# run in the herdr *server*, whose TERM_PROGRAM is whichever terminal happened to
+# launch it, not the one a client is attached from. They're routinely different,
+# and a client can attach from a terminal that didn't exist when the server
+# started. See SAFE_KEY.
 terminal_default() {
   case "${TERM_PROGRAM:-}" in
     iTerm.app|ghostty|WezTerm) echo f13; return ;;
@@ -36,9 +43,14 @@ save_key() {
   printf '%s\n' "$1" > "$KEY_FILE"
 }
 
-# An explicit choice wins, then whatever we settled on last time. We only guess
-# when there's neither — and the guess is written down, so the startup hook can't
-# re-decide from a different environment later and move the key under you.
+# The prefix is one global setting, but you can attach clients from several
+# terminals at once. It has to work in all of them, so where we can't ask, we use
+# the key that works everywhere rather than the one that's tidier.
+SAFE_KEY=f12
+
+# An explicit choice wins, then whatever we settled on last time. Failing both we
+# take SAFE_KEY — never a guess from the environment, which lies here. The result
+# is written down either way, so the startup hook can't re-decide later.
 resolve_key() {
   if [ -n "${CAPSLOCK_HERDR_KEY:-}" ]; then
     if ! valid_key "$CAPSLOCK_HERDR_KEY"; then
@@ -59,7 +71,6 @@ resolve_key() {
     echo "$KEY_FILE doesn't name an F-key; picking one instead" >&2
   fi
 
-  guess=$(terminal_default)
-  save_key "$guess"
-  echo "$guess"
+  save_key "$SAFE_KEY"
+  echo "$SAFE_KEY"
 }

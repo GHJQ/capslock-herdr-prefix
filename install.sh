@@ -56,8 +56,9 @@ elif [[ -t 0 ]]; then
     *) echo "not a choice: $answer" >&2; exit 2 ;;
   esac
 else
-  KEY=$(terminal_default)
-  echo "==> No TTY to ask on; going with ${KEY} for ${TERM_PROGRAM:-${TERM:-this terminal}}"
+  KEY="$SAFE_KEY"
+  echo "==> No TTY to ask on; going with ${KEY^^}, which every terminal sends."
+  echo "    Re-run with --key f13 if you only ever attach from terminals that send it."
 fi
 
 echo "==> Binding the prefix and remapping Caps Lock to ${KEY^^}"
