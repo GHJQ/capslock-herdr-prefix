@@ -4,6 +4,11 @@
 CONFIG_DIR="${CAPSLOCK_HERDR_CONFIG_DIR:-$HOME/.config/herdr/plugins/config/capslock-herdr-prefix}"
 KEY_FILE="$CONFIG_DIR/key"
 
+# tr, not ${x^^} — macOS ships bash 3.2 and install.sh runs under it.
+upper() {
+  echo "$1" | tr '[:lower:]' '[:upper:]'
+}
+
 valid_key() {
   case "$1" in
     f[1-9]|f1[0-9]|f20) return 0 ;;
