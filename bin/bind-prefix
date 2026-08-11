@@ -74,9 +74,8 @@ fi
 
 herdr server reload-config >/dev/null 2>&1 || true
 
-UPPER=$(echo "$KEY" | tr '[:lower:]' '[:upper:]')
 cat <<MSG
-herdr prefix bound to $UPPER (backup: $BACKUP)
+herdr prefix bound to $(upper "$KEY") (backup: $BACKUP)
 
 One step left: detach and reattach herdr, so the client picks up the new
 prefix. Then press Caps Lock and 'c' for a new tab.

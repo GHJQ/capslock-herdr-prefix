@@ -46,7 +46,7 @@ elif [[ -t 0 ]]; then
   echo "           Needs iTerm2, Ghostty, kitty, WezTerm or Alacritty —"
   echo "           Apple Terminal drops F13 and the prefix never fires."
   echo
-  echo "Detected terminal: ${TERM_PROGRAM:-${TERM:-unknown}} — suggesting ${suggested^^}"
+  echo "Detected terminal: ${TERM_PROGRAM:-${TERM:-unknown}} — suggesting $(upper "$suggested")"
   default_choice=1; [[ "$suggested" == "f13" ]] && default_choice=2
   read -r -p "Choice [$default_choice]: " answer
   case "${answer:-$default_choice}" in
@@ -57,11 +57,11 @@ elif [[ -t 0 ]]; then
   esac
 else
   KEY="$SAFE_KEY"
-  echo "==> No TTY to ask on; going with ${KEY^^}, which every terminal sends."
+  echo "==> No TTY to ask on; going with $(upper "$KEY"), which every terminal sends."
   echo "    Re-run with --key f13 if you only ever attach from terminals that send it."
 fi
 
-echo "==> Binding the prefix and remapping Caps Lock to ${KEY^^}"
+echo "==> Binding the prefix and remapping Caps Lock to $(upper "$KEY")"
 "$REMAP" on "$KEY"
 
 echo "==> Installing LaunchAgent so it survives reboot"

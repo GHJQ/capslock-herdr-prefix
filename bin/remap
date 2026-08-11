@@ -55,7 +55,7 @@ case "${1:-}" in
     fi
     others=$(other_mappings)
     apply "${others:+$others,}{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$(hid_usage "$KEY")}"
-    echo "Caps Lock -> $(echo "$KEY" | tr '[:lower:]' '[:upper:]')"
+    echo "Caps Lock -> $(upper "$KEY")"
     ;;
   off)
     apply "$(other_mappings)"
