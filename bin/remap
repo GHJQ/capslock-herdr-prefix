@@ -1,5 +1,6 @@
 #!/bin/sh
 # Point Caps Lock at an F-key, or give it back.
+# macOS: hidutil. Linux (GNOME): a user XKB option, see bin/xkb.sh.
 # usage: remap on [fN] | off
 set -eu
 
@@ -11,6 +12,29 @@ case "$0" in
   *)   SELF_DIR=$(pwd) ;;
 esac
 . "$SELF_DIR/key.sh"
+
+case "$(uname)" in
+  Darwin) PLATFORM=macos ;;
+  Linux)
+    PLATFORM=linux
+    . "$SELF_DIR/xkb.sh"
+    ;;
+  *) echo "unsupported platform: $(uname)" >&2; exit 1 ;;
+esac
+
+# Linux needs GNOME: it's what applies the XKB option. Say so before touching
+# the herdr config, so a failure can't leave a prefix with no key behind it.
+require_platform() {
+  if [ "$PLATFORM" = linux ] && ! gnome_available; then
+    cat >&2 <<MSG
+Caps Lock left alone: this needs GNOME's input-source settings (gsettings).
+On another desktop, map Caps Lock to the F-key yourself, e.g. keyd:
+  [main]
+  capslock = $KEY
+MSG
+    exit 1
+  fi
+}
 
 # Every mapping except Caps Lock's, as JSON. hidutil --set replaces the whole
 # table rather than merging, so anything we don't carry over is lost.
@@ -49,16 +73,25 @@ case "${1:-}" in
 
     # Never remap without a prefix to show for it — that trade only costs you
     # Caps Lock. bind-prefix is idempotent, so this is a no-op once set up.
+    require_platform
     if ! "$SELF_DIR/bind-prefix" "$KEY"; then
       echo "Caps Lock left alone: nothing is bound to $KEY." >&2
       exit 1
     fi
-    others=$(other_mappings)
-    apply "${others:+$others,}{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$(hid_usage "$KEY")}"
+    if [ "$PLATFORM" = linux ]; then
+      xkb_on "$KEY"
+    else
+      others=$(other_mappings)
+      apply "${others:+$others,}{\"HIDKeyboardModifierMappingSrc\":$CAPS_LOCK,\"HIDKeyboardModifierMappingDst\":$(hid_usage "$KEY")}"
+    fi
     echo "Caps Lock -> $(upper "$KEY")"
     ;;
   off)
-    apply "$(other_mappings)"
+    if [ "$PLATFORM" = linux ]; then
+      gnome_available && xkb_off
+    else
+      apply "$(other_mappings)"
+    fi
     echo "Caps Lock restored"
     ;;
   *)

@@ -5,8 +5,9 @@
 # never reaches the terminal), so we remap it to a spare F-key and bind that.
 #
 # The remap itself lives in bin/remap, which also binds the prefix. All this
-# script adds is the choice of key and a LaunchAgent, so the remap survives a
-# reboot rather than only lasting as long as herdr runs.
+# script adds is the choice of key and, on macOS, a LaunchAgent, so the remap
+# survives a reboot rather than only lasting as long as herdr runs. On Linux the
+# GNOME setting bin/remap writes already persists, so there's nothing to add.
 #
 # usage: ./install.sh [--key fN]
 set -euo pipefail
@@ -19,8 +20,12 @@ REMAP="$SCRIPT_DIR/bin/remap"
 # shellcheck source=bin/key.sh
 . "$SCRIPT_DIR/bin/key.sh"
 
-[[ "$(uname)" == "Darwin" ]] || { echo "macOS only — hidutil is an Apple thing." >&2; exit 1; }
-command -v herdr >/dev/null || { echo "herdr not found on PATH. brew install herdr" >&2; exit 1; }
+case "$(uname)" in
+  Darwin) PLATFORM=macos ;;
+  Linux)  PLATFORM=linux ;;
+  *) echo "macOS and Linux only." >&2; exit 1 ;;
+esac
+command -v herdr >/dev/null || { echo "herdr not found on PATH. See https://herdr.dev to install it." >&2; exit 1; }
 
 KEY=""
 while [[ $# -gt 0 ]]; do
@@ -39,10 +44,10 @@ elif [[ -t 0 ]]; then
   suggested=$(terminal_default)
   echo "Caps Lock has to become some other key before herdr can bind it."
   echo
-  echo "  1) F12 — every terminal sends it, including Apple Terminal."
+  echo "  1) F12 — every terminal sends it, including Apple Terminal and GNOME Terminal."
   echo "           Caps Lock will shadow F12 in other apps (rarely bound;"
   echo "           the real F12 key still works)."
-  echo "  2) F13 — no Apple keyboard has one, so nothing else wants it."
+  echo "  2) F13 — most keyboards don't have one, so nothing else wants it."
   echo "           Needs iTerm2, Ghostty, kitty, WezTerm or Alacritty —"
   echo "           Apple Terminal drops F13 and the prefix never fires."
   echo
@@ -63,6 +68,15 @@ fi
 
 echo "==> Binding the prefix and remapping Caps Lock to $(upper "$KEY")"
 "$REMAP" on "$KEY"
+
+if [[ "$PLATFORM" == linux ]]; then
+  echo
+  echo "Done. Caps Lock is now your herdr prefix — try Caps Lock then 'c' for a new tab."
+  echo "If Caps Lock still capitalises, log out and back in so GNOME rereads ~/.config/xkb."
+  echo
+  echo "Caps Lock no longer capitalises anything, in any app. ./uninstall.sh reverts it."
+  exit 0
+fi
 
 echo "==> Installing LaunchAgent so it survives reboot"
 mkdir -p "$(dirname "$PLIST")"

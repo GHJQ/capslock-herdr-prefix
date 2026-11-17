@@ -1,9 +1,9 @@
 id = "capslock-herdr-prefix"
 name = "Caps Lock prefix"
-version = "0.2.0"
+version = "0.3.0"
 min_herdr_version = "0.7.0"
 description = "Remap Caps Lock to an unused F-key so herdr can bind it as the prefix key"
-platforms = ["macos"]
+platforms = ["macos", "linux"]
 
 # Applied once per herdr start. Quitting herdr leaves the remap in place —
 # plugin v1 has no shutdown hook. Run the "restore" action, or use install.sh
@@ -27,7 +27,7 @@ command = ["./bin/remap", "on"]
 # sends F13, so the prefix silently does nothing there. These pick a side.
 [[actions]]
 id = "use-f12"
-title = "Use F12 (works in Apple Terminal)"
+title = "Use F12 (works in every terminal)"
 contexts = ["workspace"]
 command = ["./bin/remap", "on", "f12"]
 
