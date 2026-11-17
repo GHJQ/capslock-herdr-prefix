@@ -1,6 +1,6 @@
 # Caps Lock as the herdr prefix
 
-Makes Caps Lock the prefix key for [herdr](https://herdr.dev) on macOS.
+Makes Caps Lock the prefix key for [herdr](https://herdr.dev) on macOS and Linux (GNOME).
 
 ```sh
 herdr plugin install GHJQ/capslock-herdr-prefix
@@ -39,8 +39,9 @@ cd capslock-herdr-prefix
 ./install.sh
 ```
 
-Same setup, plus a LaunchAgent so the remap is always on rather than only while
-herdr is running. Pick this one if you want it to behave like a permanent
+Same setup, plus (on macOS) a LaunchAgent so the remap is always on rather than
+only while herdr is running. On Linux the remap is a GNOME setting that already
+persists across logins, so there's nothing extra to install. Pick this one if you want it to behave like a permanent
 keyboard setting. It asks which key to use; `--key f13` skips the question.
 
 ## Which key?
@@ -52,6 +53,7 @@ to explain why.
 | | F12 | F13 |
 |---|---|---|
 | Apple Terminal | works | **silently does nothing** |
+| GNOME Terminal | works | untested |
 | iTerm2, Ghostty, kitty, WezTerm, Alacritty | works | works |
 | Collides with | F12 in other apps — rarely bound, and the real F12 key still works | nothing; no Apple keyboard has an F13 |
 
@@ -112,6 +114,8 @@ F-key as the herdr prefix, then points Caps Lock at it at the HID level with
 
 ## What it changes
 
+### macOS
+
 | | plugin | `install.sh` |
 |---|---|---|
 | `[keys] prefix = "<key>"` in `~/.config/herdr/config.toml` | on first run | on first run |
@@ -137,12 +141,46 @@ needs the clone to stay put. Move it and re-run `./install.sh`.
 macOS's built-in Keyboard → Modifier Keys panel can't do this, incidentally — it
 only offers Ctrl, Option, Command, Escape and Globe. Hence `hidutil`.
 
+### Linux (GNOME)
+
+There's no `hidutil`, and GNOME's own Caps Lock options (Tweaks → Keyboard →
+Additional Layout Options) stop at Escape, Ctrl, Super and friends — none of them
+an F-key. So `bin/xkb.sh` ships its own XKB option instead:
+
+| | plugin and `install.sh` |
+|---|---|
+| `[keys] prefix = "<key>"` in `~/.config/herdr/config.toml` | on first run |
+| `~/.config/xkb/symbols/herdr` — one variant per F-key, `caps_f1` … `caps_f20` | written on every run |
+| `~/.config/xkb/rules/evdev` — registers `herdr:caps_f1` … `herdr:caps_f20` | created, or appended to if you already have one |
+| `herdr:caps_<key>` in `org.gnome.desktop.input-sources xkb-options` | added; your other options are kept |
+
+libxkbcommon (1.0 and later) reads rules and symbols from `~/.config/xkb`, and
+GNOME compiles your keymap from the options in that setting, so this needs no
+root and no daemon, and it persists across logins on its own. It works on Wayland
+and X11 sessions. If Caps Lock still capitalises right after the first install,
+log out and back in so GNOME rereads `~/.config/xkb`.
+
+Each F-key gets its own option rather than one option whose symbols get
+rewritten: switching keys has to change the option list, because that's what
+makes GNOME recompile the keymap.
+
+Not on GNOME? `bin/remap` refuses rather than half-installing, and the herdr
+config is left alone. Map Caps Lock to the F-key yourself — with
+[keyd](https://github.com/rvaiya/keyd), for example:
+
+```ini
+[main]
+capslock = f12
+```
+
+then run `bin/bind-prefix f12` to bind it in herdr.
+
 ## Caveats
 
-**Caps Lock stops capitalising, everywhere.** This is a system-wide HID remap, not
-a per-app one. Every app sees the F-key.
+**Caps Lock stops capitalising, everywhere.** This is a system-wide remap (HID on
+macOS, the keymap on Linux), not a per-app one. Every app sees the F-key.
 
-**The Caps Lock light no longer comes on.** Nothing is toggling the lock state
+**The Caps Lock light no longer comes on.** (The LED notes below are about macOS.) Nothing is toggling the lock state
 any more, so there's nothing to light up.
 
 Lighting that LED to indicate prefix mode turns out to be a dead end, in case you

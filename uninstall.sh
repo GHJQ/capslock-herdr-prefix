@@ -12,16 +12,30 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Whatever we bound last. Installs from before the key was configurable have no
 # key file and were always F13.
 KEY=f13
-[[ -f "$KEY_FILE" ]] && KEY=$(tr -d '[:space:]' < "$KEY_FILE")
+if [[ -f "$KEY_FILE" ]]; then
+  KEY=$(tr -d '[:space:]' < "$KEY_FILE")
+elif [[ -f "$CONFIG" ]]; then
+  # No saved choice: go by whichever F-key the config actually binds.
+  bound=$(sed -n 's/^prefix = "\(f[0-9]*\)"$/\1/p' "$CONFIG" | head -1)
+  valid_key "${bound:-}" && KEY=$bound
+fi
 
-echo "==> Removing LaunchAgent"
-for label in "$LABEL" "$LEGACY_LABEL"; do
-  launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
-  rm -f "$HOME/Library/LaunchAgents/$label.plist"
-done
+if [[ "$(uname)" == "Darwin" ]]; then
+  echo "==> Removing LaunchAgent"
+  for label in "$LABEL" "$LEGACY_LABEL"; do
+    launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
+    rm -f "$HOME/Library/LaunchAgents/$label.plist"
+  done
 
-echo "==> Clearing the HID remap"
-"$SCRIPT_DIR/bin/remap" off >/dev/null
+  echo "==> Clearing the HID remap"
+  "$SCRIPT_DIR/bin/remap" off >/dev/null
+else
+  echo "==> Clearing the XKB option"
+  "$SCRIPT_DIR/bin/remap" off >/dev/null
+  # shellcheck source=bin/xkb.sh
+  . "$SCRIPT_DIR/bin/xkb.sh"
+  xkb_remove_files
+fi
 
 echo "==> Reverting the herdr prefix"
 if [[ -f "$CONFIG" ]] && grep -q "^prefix = \"$KEY\"$" "$CONFIG"; then
